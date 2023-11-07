@@ -6,7 +6,8 @@ import com.github.yjgbg.util.fp.|>
 import sttp.tapir.server.ziohttp.ZioHttpInterpreter
 import sttp.tapir.ztapir.*
 import zio.ZLayer
-import zio.config.ReadError
+
+import scala.util.control.NoStackTrace
 object ServerApplication:
   @main def main(args:String*) = zio.Unsafe.unsafe: uf ?=>
     (Nil
@@ -14,14 +15,17 @@ object ServerApplication:
         zio.ZIO.succeed(StdResponseWith(200, "OK", in.username))
       }
     )
-    |> {ZioHttpInterpreter().toHttp(_)}
-    |> {zio.http.Server.serve(_)}
-    |> {_ <* zio.Console.printLine("server starting")}
-    |> {_ *> zio.Console.printLine("server started")}
-    |> {_.provide(CommandLineArgsLayer.live(args) >+> ConfigLayer.live >+> ServerLayer.live)}
+    |> {ZioHttpInterpreter().toHttp _}
+    |> {zio.http.Server.serve _}
+    |> {zio.ZIO.serviceWithZIO[ConfigLayer.Config]{cfg =>
+      zio.Console.printLine(s"server start on port ${cfg.server.address}:${cfg.server.port}")
+    } *> _}
+    |> {_ *> zio.Console.printLine("server finished")}
+    |> {_ provide ConfigLayer.live(args)
+      >+> ServerLayer.live
+    }
     |> {_.catchSome {
-      case e:ReadError[_] => zio.Console.printLine(s"config error on ${e.getMessage}")
-      case e:Throwable => zio.Console.printLine(e.getStackTrace.mkString("\n"))
+      case e:NoStackTrace => zio.Console.printLine(s"${e.getClass}:${e.getMessage}")
+      case e:Throwable => zio.Console.printLine(s"${e.getClass}:${e.getMessage}\n${e.getStackTrace.mkString("\n\t\t")}")
     }}
-    |> {zio.Runtime.default.unsafe.run(_)}
-    |> {_.exitCode}
+    |> {zio.Runtime.default.unsafe.run _}
