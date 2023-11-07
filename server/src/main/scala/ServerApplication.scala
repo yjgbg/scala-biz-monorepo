@@ -1,6 +1,6 @@
 package com.github.yjgbg
 package server
-import com.github.yjgbg.server.layers.{CommandLineArgsLayer, ConfigLayer, ServerLayer}
+import com.github.yjgbg.server.layers.{ConfigLayer, ServerLayer}
 import com.github.yjgbg.spec.Proxy.StdResponseWith
 import com.github.yjgbg.util.fp.|>
 import sttp.tapir.server.ziohttp.ZioHttpInterpreter
