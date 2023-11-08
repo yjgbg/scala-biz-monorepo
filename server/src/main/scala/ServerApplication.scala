@@ -17,14 +17,14 @@ object ServerApplication:
     )
     |> {ZioHttpInterpreter().toHttp _}
     |> {zio.http.Server.serve _}
+    |> {_ race zio.Console.printLine("press enter to stop").orDie}
     |> {zio.ZIO.serviceWithZIO[ConfigLayer.Config]{cfg =>
       zio.Console.printLine(s"server start on port ${cfg.server.address}:${cfg.server.port}")
     } *> _}
-    |> {_ *> zio.Console.printLine("server finished")}
     |> {_ provide ConfigLayer.live(args)
       >+> ServerLayer.live
     }
-    |> {_.catchSome {
+    |> {_ catchAll {
       case e:NoStackTrace => zio.Console.printLine(s"${e.getClass}:${e.getMessage}")
       case e:Throwable => zio.Console.printLine(s"${e.getClass}:${e.getMessage}\n${e.getStackTrace.mkString("\n\t\t")}")
     }}
