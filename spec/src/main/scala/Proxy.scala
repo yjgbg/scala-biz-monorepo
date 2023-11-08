@@ -6,7 +6,7 @@ object Proxy:
   import io.circe.generic.auto.{*,given}
   import sttp.tapir.generic.auto.{*,given}
   case class Login(username: String, password: String)
-  case class StdResponseWith[A](code: Int, message: String, data: A)
+  case class StdResponseWith[A]( data: A,code: Int = 0, message: String = "")
   case class StdResponse(code: Int, message: String)
   def login = sttp.tapir.endpoint
     .tag("用户")
@@ -15,4 +15,4 @@ object Proxy:
     .in("api" / "login")
     .in(jsonBody[Login])
     .out(jsonBody[StdResponseWith[String]])
-    .errorOut(jsonBody[StdResponseWith[String]])
+    .errorOut(jsonBody[StdResponse])

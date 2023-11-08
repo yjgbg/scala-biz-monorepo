@@ -1,7 +1,7 @@
 package com.github.yjgbg
 package server
-import com.github.yjgbg.server.layers.{ConfigLayer, ServerLayer}
-import com.github.yjgbg.spec.Proxy.StdResponseWith
+import com.github.yjgbg.server.layers.{ConfigLayer, LoggerLayer, ServerLayer}
+import com.github.yjgbg.spec.Proxy.{StdResponse, StdResponseWith}
 import com.github.yjgbg.util.fp.|>
 import sttp.tapir.server.ziohttp.ZioHttpInterpreter
 import sttp.tapir.ztapir.*
@@ -9,10 +9,21 @@ import sttp.tapir.ztapir.*
 import java.time.format.DateTimeFormatter
 import scala.util.control.NoStackTrace
 object ServerApplication:
-  @main def main(args:String*) = zio.Unsafe.unsafe: uf ?=>
+  @main def main(args:String*): Unit = zio.Unsafe.unsafe: uf ?=>
+    new Thread(() => {
+      while (true) {
+        println(s"Thread.activeCount = ${Thread.activeCount()}")
+        val group = Thread.currentThread().getThreadGroup
+        val all = new Array[Thread](group.activeCount())
+        group.enumerate(all)
+        all.foreach(it => println(it.getName))
+        Thread.sleep(20000)
+      }
+    }
+    ).start()
     (Nil
       :+ spec.Proxy.login.zServerLogic { in =>
-        zio.ZIO.succeed(StdResponseWith(200, "OK", in.username))
+        zio.ZIO.succeed(StdResponseWith(in.username))
       }
     )
     |> {ZioHttpInterpreter().toHttp _}
@@ -22,23 +33,10 @@ object ServerApplication:
       zio.ZIO.logInfo(s"server start on port ${cfg.server.address}:${cfg.server.port}")
     } *> _}
     |> {_ *> zio.ZIO.logInfo("server stopped")}
-    |> {_ provide ConfigLayer.live(args) >+> ServerLayer.live}
-    |> {_ provide zio.Runtime.removeDefaultLoggers >>> zio.logging.consoleJsonLogger(
-      config = zio.logging.ConsoleLoggerConfig.default
-        .copy(
-          format = {
-            import zio.logging.LogFormat.*
-            label("timestamp", timestamp(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))) +
-              label("level", level) +
-              label("location",enclosingClass + text(":") + traceLine) +
-              label("thread", fiberId) +
-              label("message", line) +
-              label("cause", cause)
-          }
-        )
-    )}
+    |> {_ provide ConfigLayer.live(args) >+> ServerLayer.live ++ LoggerLayer.live}
     |> {_ catchAll {
       case e:NoStackTrace => zio.ZIO.logInfo(s"${e.getClass}:${e.getMessage}")
       case e:Throwable => zio.ZIO.logInfo(s"${e.getClass}:${e.getMessage}\n${e.getStackTrace.mkString("\n\t\t")}")
     }}
     |> {zio.Runtime.default.unsafe.run _}
+    |> {_.getOrThrowFiberFailure()}
