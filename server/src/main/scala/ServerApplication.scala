@@ -1,27 +1,16 @@
 package com.github.yjgbg
 package server
 import com.github.yjgbg.server.layers.{ConfigLayer, LoggerLayer, ServerLayer}
-import com.github.yjgbg.spec.Proxy.{StdResponse, StdResponseWith}
-import com.github.yjgbg.util.fp.{|>,||>}
+import com.github.yjgbg.spec.Proxy.StdResponseWith
+import com.github.yjgbg.util.fp.{|>, ||>}
 import sttp.tapir.server.ziohttp.ZioHttpInterpreter
 import sttp.tapir.ztapir.*
 
-import java.time.format.DateTimeFormatter
+import java.nio.file.Paths
+import java.util.concurrent.TimeUnit
 import scala.util.control.NoStackTrace
 object ServerApplication:
   @main def main(args:String*): Unit = zio.Unsafe.unsafe: uf ?=>
-    new Thread(() => {
-      while (true) {
-        println(s"Thread.activeCount = ${Thread.activeCount()}")
-        val group = Thread.currentThread().getThreadGroup
-        val all = new Array[Thread](group.activeCount())
-        group.enumerate(all)
-        all.foreach(it => println(it.getName))
-        Thread.sleep(20000)
-      }
-    })
-    ||> {it => it.setDaemon(true)}
-    |> {_.start()}
     (Nil
       :+ spec.Proxy.login.zServerLogic { in =>
         zio.ZIO.logInfo(s"received request:$in")
@@ -29,6 +18,9 @@ object ServerApplication:
       }
     )
     |> {ZioHttpInterpreter().toHttp _}
+    |> {_ @@ zio.http.Middleware.cors}
+    |> {_ @@ zio.http.Middleware.timeout(zio.Duration(2,TimeUnit.SECONDS))}
+    |> {_ @@ zio.http.Middleware.serveDirectory(zio.http.Path("code"),Paths.get("./").toFile)}
     |> {zio.http.Server.serve _}
     |> {_ race (zio.ZIO.logInfo("press enter to stop") *> zio.Console.readLine(""))}
     |> {zio.ZIO.serviceWithZIO[ConfigLayer.Config]{cfg =>

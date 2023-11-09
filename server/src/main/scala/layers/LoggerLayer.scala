@@ -8,9 +8,8 @@ import java.nio.file.Paths
 import java.time.format.DateTimeFormatter
 
 object LoggerLayer:
-  lazy val live: ZLayer[Any, Nothing, Unit] = zio.Runtime.removeDefaultLoggers >>> zio.logging.fileJsonLogger(
-    config = FileLoggerConfig(
-      destination = Paths.get("./xx.log"),
+  lazy val live: ZLayer[Any, Nothing, Unit] = zio.Runtime.removeDefaultLoggers >>> zio.logging.consoleJsonLogger(
+    config = zio.logging.ConsoleLoggerConfig(
       format = {
         import zio.logging.LogFormat.*
         label("timestamp", timestamp(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))) +
