@@ -37,7 +37,7 @@ lazy val server = (project in file("server"))
     name := "server",
     idePackagePrefix := Some(organization.value + ".server"),
     libraryDependencies += "com.softwaremill.sttp.tapir" %% "tapir-zio-http-server" % "1.8.5",
-    libraryDependencies += "dev.zio" %% "zio-config-yaml" % "3.0.7",
+    libraryDependencies += "dev.zio" %% "zio-config-typesafe" % "3.0.7",
     libraryDependencies += "dev.zio" %% "zio-config-magnolia" % "3.0.7",
     libraryDependencies += "dev.zio" %% "zio-logging" % "2.1.15",
   )

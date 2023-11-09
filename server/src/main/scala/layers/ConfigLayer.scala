@@ -1,15 +1,21 @@
 package com.github.yjgbg.server
 package layers
-object ConfigLayer:
-  case class Server(address: String, port: Int)
 
-  case class Config(server: Server,`type`:String)
+import java.time.Duration
+
+object ConfigLayer:
+  case class Config(server: Server,name:String)
+  import zio.http.netty.{NettyConfig,ChannelType}
+  case class Server(address: String = "0.0.0.0", port: Int = 8080,netty:NettyConfig = NettyConfig(
+    leakDetectionLevel = NettyConfig.LeakDetectionLevel.SIMPLE,
+    channelType = ChannelType.AUTO,
+    nThreads = 0,
+    shutdownQuietPeriodDuration = Duration.ofSeconds(2),
+    shutdownTimeoutDuration = Duration.ofSeconds(15)
+  ))
   def live(args:Seq[String]): zio.ZLayer[Any, zio.config.ReadError[String], Config] =
     import com.github.yjgbg.util.fp.|>
-    "application.yml"
-      |> {ClassLoader.getSystemResourceAsStream}
-      |> {java.io.InputStreamReader(_)}
-      |> {zio.config.yaml.YamlConfigSource.fromYamlReader(_)}
+    zio.config.typesafe.TypesafeConfigSource.fromResourcePath
       |> {zio.config.ConfigSource.fromSystemProps(Some('.'), Some(',')) <> _}
       |> {zio.config.ConfigSource.fromCommandLineArgs(args.toList, Some('.'), Some(',')) <> _}
       |> {zio.config.magnolia.descriptor[Config] from _}
